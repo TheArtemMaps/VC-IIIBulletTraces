@@ -4,10 +4,15 @@
 #include "CCamera.h"
 #include "CTxdStore.h"
 #include "RenderBuffer.h"
-
+#include "ini.h"
+#include <format>
 #define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
 #define FIX_BUGS // Undefine to play with bugs
 RwTexture* gpSmokeTrailTexture;
+
+float CBulletTraces::thickness[512];
+int CBulletTraces::lifetime[512];
+int CBulletTraces::visibility[512];
 
 RwIm3DVertex TraceVertices[10];
 static RwImVertexIndex TraceIndexList[48] = { 0, 5, 7, 0, 7, 2, 0, 7, 5, 0, 2, 7, 0, 4, 9, 0,
@@ -17,9 +22,8 @@ static RwImVertexIndex TraceIndexList[48] = { 0, 5, 7, 0, 7, 2, 0, 7, 5, 0, 2, 7
 
 void CBulletTraces::Init(void)
 {
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < 255; i++)
 		aTraces[i].m_bInUse = false;
-
 	CTxdStore::PushCurrentTxd();
 	int32_t slot2 = CTxdStore::AddTxdSlot("VCBulletTrails");
 	CTxdStore::LoadTxd(slot2, GAME_PATH((char*)"MODELS\\VCBULLETTRAILS.TXD"));
@@ -56,9 +60,38 @@ void CBulletTraces::Init(void)
 	TraceIndexList[10] = 4;
 	TraceIndexList[11] = 5;
 
+	//Traces ini load
+	mINI::INIFile file(GAME_PATH((char*)"MODELS\\VCBulletTrails.ini"));
+	mINI::INIStructure ini;
+	file.read(ini);
+
+	//Reading weapons params
+	for (int32_t i = 22; i < 512; i++)
+	{
+
+		std::string name = "WEP";
+		std::string formatted_str = std::format(
+			"{}{}", name,
+			i);
+
+		const char* formatted_str2 = formatted_str.c_str();
+
+		std::string strb = ini.get(formatted_str2).get("thickness");
+		const char* strb2 = strb.c_str();
+		std::string strc = ini.get(formatted_str2).get("lifetime");
+		const char* strc2 = strc.c_str();
+		std::string strd = ini.get(formatted_str2).get("visibility");
+		const char* strd2 = strd.c_str();
+
+		thickness[i] = std::atof(strb2);
+		lifetime[i] = std::atoi(strc2);
+		visibility[i] = std::atoi(strd2);
+
+	}
+
 }
 
-CBulletTrace CBulletTraces::aTraces[256];
+CBulletTrace CBulletTraces::aTraces[255];
 
 void CBulletTraces::AddTrace(CVector* start, CVector* end, float thickness, uint32_t lifeTime, uint8_t visibility)
 {
@@ -67,7 +100,7 @@ void CBulletTraces::AddTrace(CVector* start, CVector* end, float thickness, uint
 	int32_t nextSlot;
 
 	enabledCount = 0;
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < 255; i++)
 		if (aTraces[i].m_bInUse)
 			enabledCount++;
 	if (enabledCount >= 10)
@@ -78,9 +111,9 @@ void CBulletTraces::AddTrace(CVector* start, CVector* end, float thickness, uint
 		modifiedLifeTime = lifeTime;
 
 	nextSlot = 0;
-	for (int i = 0; nextSlot < 256 && aTraces[i].m_bInUse; i++)
+	for (int i = 0; nextSlot < 255 && aTraces[i].m_bInUse; i++)
 		nextSlot++;
-	if (nextSlot < 256) {
+	if (nextSlot < 255) {
 		aTraces[nextSlot].m_vecStartPos = *start;
 		aTraces[nextSlot].m_vecEndPos = *end;
 		aTraces[nextSlot].m_bInUse = true;
@@ -113,7 +146,7 @@ void CBulletTraces::AddTrace2(CVector* start, CVector* end, int32_t weaponType, 
 	float speed;
 	int16_t camMode;
 
-	if (shooter == (CEntity*)FindPlayerPed() || (FindPlayerVehicle(-1, true) != nullptr && FindPlayerVehicle(-1, true) == (CVehicle*)shooter)) {
+	if (shooter == (CEntity*)FindPlayerPed() || (FindPlayerVehicle(NULL, NULL) != NULL && FindPlayerVehicle(NULL, NULL) == (CVehicle*)shooter)) {
 		camMode = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_nMode;
 		if (camMode == MODE_M16_1STPERSON
 			|| camMode == MODE_CAMERA
@@ -124,35 +157,29 @@ void CBulletTraces::AddTrace2(CVector* start, CVector* end, int32_t weaponType, 
 			|| camMode == MODE_SNIPER_RUNABOUT
 			|| camMode == MODE_HELICANNON_1STPERSON) {
 
-			player = FindPlayerVehicle(-1, true) ? (CPhysical*)FindPlayerVehicle(-1, true) : (CPhysical*)FindPlayerPed();
+			player = FindPlayerVehicle(NULL, NULL) ? (CPhysical*)FindPlayerVehicle(NULL, NULL) : (CPhysical*)FindPlayerPed();
 			speed = player->m_vecMoveSpeed.Magnitude();
 			if (speed < 0.05f)
 				return;
 		}
 	}
 
-	switch (weaponType) {
-	case eWeaponType::WEAPON_DESERT_EAGLE:
-	case eWeaponType::WEAPON_SHOTGUN:
-	case eWeaponType::WEAPON_SPAS12:
-	case eWeaponType::WEAPON_SAWNOFF:
-		CBulletTraces::AddTrace(start, end, 0.7f, 1000, 200);
-		break;
-	case eWeaponType::WEAPON_M4:
-	case eWeaponType::WEAPON_AK47:
-	case eWeaponType::WEAPON_SNIPERRIFLE:
-	case eWeaponType::WEAPON_MINIGUN:
-	case eWeaponType::WEAPON_COUNTRYRIFLE:
-	case eWeaponType::WEAPON_MP5:
-	case eWeaponType::WEAPON_TEC9:
-	case eWeaponType::WEAPON_PISTOL:
-	case eWeaponType::WEAPON_MICRO_UZI:
-		CBulletTraces::AddTrace(start, end, 1.0f, 2000, 220);
-		break;
-	default:
-		CBulletTraces::AddTrace(start, end, 0.4f, 750, 150);
-		break;
-	}
+	/*AddTrace(
+		start,
+		end,
+		1.0f,
+		2000,
+		220
+	);
+	*/
+
+	AddTrace(
+		start,
+		end,
+		thickness[weaponType],
+		lifetime[weaponType],
+		visibility[weaponType]
+	);
 }
 
 CVector operator/(const CVector& vec, float dividend) {
@@ -161,7 +188,7 @@ CVector operator/(const CVector& vec, float dividend) {
 
 void CBulletTraces::Render(void)
 {
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 255; i++) {
 		if (!aTraces[i].m_bInUse)
 			continue;
 		RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
@@ -172,6 +199,7 @@ void CBulletTraces::Render(void)
 		float timeAlive = CTimer::m_snTimeInMilliseconds - aTraces[i].m_nCreationTime;
 
 		float traceThickness = aTraces[i].m_fThickness * timeAlive / aTraces[i].m_nLifeTime;
+
 		CVector horizontalOffset = aTraces[i].m_vecEndPos - aTraces[i].m_vecStartPos;
 		horizontalOffset.Normalise();
 		horizontalOffset *= traceThickness;
@@ -303,7 +331,7 @@ void CBulletTraces::Render(void)
 
 void CBulletTraces::Update(void)
 {
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 255; i++) {
 		if (aTraces[i].m_bInUse)
 			aTraces[i].Update();
 	}
@@ -314,7 +342,8 @@ void CBulletTrace::Update(void)
 	if (CTimer::m_snTimeInMilliseconds - m_nCreationTime >= m_nLifeTime)
 		m_bInUse = false;
 }
-void CBulletTrace::Shutdown(void) {
+
+void CBulletTraces::Shutdown(void) {
 	if (gpSmokeTrailTexture) {
 		RwTextureDestroy(gpSmokeTrailTexture);
 		gpSmokeTrailTexture = nullptr;

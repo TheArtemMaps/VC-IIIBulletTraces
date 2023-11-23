@@ -17,7 +17,7 @@ public:
             CBulletTraces::Update();
         };
         plugin::Events::shutdownRwEvent += []() {
-            CBulletTrace::Shutdown();
+            CBulletTraces::Shutdown();
         };
         patch::RedirectJump(0x726AF0, CBulletTraces::AddTrace2);
         patch::RedirectJump(0x723750, CBulletTraces::AddTrace);
