@@ -4,9 +4,7 @@
 #include "CCamera.h"
 #include "CTxdStore.h"
 #include "RenderBuffer.h"
-#include "ini.h"
-float Thickness;
-int Count;
+
 #define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
 #define FIX_BUGS // Undefine to play with bugs
 RwTexture* gpSmokeTrailTexture;
@@ -19,20 +17,8 @@ static RwImVertexIndex TraceIndexList[48] = { 0, 5, 7, 0, 7, 2, 0, 7, 5, 0, 2, 7
 
 void CBulletTraces::Init(void)
 {
-	for (int i = 0; i < Count; i++)
+	for (int i = 0; i < 256; i++)
 		aTraces[i].m_bInUse = false;
-	mINI::INIFile file("VCBulletTrails.ini");
-	mINI::INIStructure ini;
-	file.read(ini);
-	//Grand count of traces
-	std::string count = ini.get("MAIN").get("Count");
-	const char* count2 = count.c_str();
-	Count = std::atoi(count2);
-
-	//Thickness
-	std::string Thickness2 = ini.get("MAIN").get("Thickness");
-	const char* Thickness22 = Thickness2.c_str();
-	Thickness = std::atof(Thickness22);
 
 	CTxdStore::PushCurrentTxd();
 	int32_t slot2 = CTxdStore::AddTxdSlot("VCBulletTrails");
@@ -81,7 +67,7 @@ void CBulletTraces::AddTrace(CVector* start, CVector* end, float thickness, uint
 	int32_t nextSlot;
 
 	enabledCount = 0;
-	for (int i = 0; i < Count; i++)
+	for (int i = 0; i < 256; i++)
 		if (aTraces[i].m_bInUse)
 			enabledCount++;
 	if (enabledCount >= 10)
@@ -92,15 +78,15 @@ void CBulletTraces::AddTrace(CVector* start, CVector* end, float thickness, uint
 		modifiedLifeTime = lifeTime;
 
 	nextSlot = 0;
-	for (int i = 0; nextSlot < Count && aTraces[i].m_bInUse; i++)
+	for (int i = 0; nextSlot < 256 && aTraces[i].m_bInUse; i++)
 		nextSlot++;
-	if (nextSlot < Count) {
+	if (nextSlot < 256) {
 		aTraces[nextSlot].m_vecStartPos = *start;
 		aTraces[nextSlot].m_vecEndPos = *end;
 		aTraces[nextSlot].m_bInUse = true;
 		aTraces[nextSlot].m_nCreationTime = CTimer::m_snTimeInMilliseconds;
 		aTraces[nextSlot].m_fVisibility = visibility;
-		aTraces[nextSlot].m_fThickness = Thickness;
+		aTraces[nextSlot].m_fThickness = thickness;
 		aTraces[nextSlot].m_nLifeTime = modifiedLifeTime;
 	}
 
@@ -150,7 +136,7 @@ void CBulletTraces::AddTrace2(CVector* start, CVector* end, int32_t weaponType, 
 	case eWeaponType::WEAPON_SHOTGUN:
 	case eWeaponType::WEAPON_SPAS12:
 	case eWeaponType::WEAPON_SAWNOFF:
-		CBulletTraces::AddTrace(start, end, Thickness, 1000, 200);
+		CBulletTraces::AddTrace(start, end, 0.7f, 1000, 200);
 		break;
 	case eWeaponType::WEAPON_M4:
 	case eWeaponType::WEAPON_AK47:
@@ -161,10 +147,10 @@ void CBulletTraces::AddTrace2(CVector* start, CVector* end, int32_t weaponType, 
 	case eWeaponType::WEAPON_TEC9:
 	case eWeaponType::WEAPON_PISTOL:
 	case eWeaponType::WEAPON_MICRO_UZI:
-		CBulletTraces::AddTrace(start, end, Thickness, 2000, 220);
+		CBulletTraces::AddTrace(start, end, 1.0f, 2000, 220);
 		break;
 	default:
-		CBulletTraces::AddTrace(start, end, Thickness, 750, 150);
+		CBulletTraces::AddTrace(start, end, 0.4f, 750, 150);
 		break;
 	}
 }
@@ -175,7 +161,7 @@ CVector operator/(const CVector& vec, float dividend) {
 
 void CBulletTraces::Render(void)
 {
-	for (int i = 0; i < Count; i++) {
+	for (int i = 0; i < 256; i++) {
 		if (!aTraces[i].m_bInUse)
 			continue;
 		RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
@@ -317,7 +303,7 @@ void CBulletTraces::Render(void)
 
 void CBulletTraces::Update(void)
 {
-	for (int i = 0; i < Count; i++) {
+	for (int i = 0; i < 256; i++) {
 		if (aTraces[i].m_bInUse)
 			aTraces[i].Update();
 	}

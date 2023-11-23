@@ -1,6 +1,7 @@
 #include "plugin.h"
 
 #include "BulletTrails.h"
+
 using namespace plugin;
 plugin::CdeclEvent <plugin::AddressList<0x726AD0, plugin::H_CALL>, plugin::PRIORITY_AFTER, plugin::ArgPickNone, void()> movingThingsEvent;
 class VCBulletTraces {
