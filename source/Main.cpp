@@ -1,13 +1,12 @@
 #include "plugin.h"
 
 #include "BulletTrails.h"
-
 using namespace plugin;
-plugin::CdeclEvent <plugin::AddressList<0x726AD0, plugin::H_CALL>, plugin::PRIORITY_AFTER, plugin::ArgPickNone, void()> movingThingsEvent;
+plugin::ThiscallEvent<AddressList<0x53E175, H_CALL>, PRIORITY_AFTER, ArgPickNone, void()> movingThingsEvent;
 class VCBulletTraces {
 public:
     VCBulletTraces() {
-        plugin::Events::initGameEvent += []() {
+        plugin::Events::initRwEvent += []() {
             CBulletTraces::Init();
         };
         movingThingsEvent += []() {
@@ -16,10 +15,10 @@ public:
         plugin::Events::gameProcessEvent += []() {
             CBulletTraces::Update();
         };
-        plugin::Events::shutdownRwEvent += []() {
-            CBulletTraces::Shutdown();
-        };
-        patch::RedirectJump(0x726AF0, CBulletTraces::AddTrace2);
+       // plugin::Events::shutdownRwEvent += []() {
+       //     CBulletTraces::Shutdown();
+       // };
+        //patch::RedirectJump(0x726AF0, CBulletTraces::AddTrace2);
         patch::RedirectJump(0x723750, CBulletTraces::AddTrace);
         //patch::RedirectJump(0x723C10, CBulletTraces::Render);
         //patch::RedirectJump(0x723FB0, CBulletTraces::Update);
